@@ -31,7 +31,7 @@ namespace DeleteOlders
 
         static void AddMonthYear(MonthYear monthYear)
         {
-            if(!monthYears.Any(x=>x.Month == monthYear.Month && x.Year == monthYear.Year))
+            if (!monthYears.Any(x => x.Month == monthYear.Month && x.Year == monthYear.Year))
             {
                 Log("Mês para verificar:" + monthYear.ToString());
                 monthYears.Add(monthYear);
@@ -53,88 +53,130 @@ namespace DeleteOlders
 
         static void Main(string[] args)
         {
-            if (args.Length == 0)
+            try
             {
-                throw new Exception("Nenhum argumento encontrado");
-            }
 
-            if (GetArg("-d", args) == null)
-            {
-                throw new Exception("Requer o argumento -d com o diretório a ser verificado");
-            }
+                Mailer mailer = new Mailer();
 
-            string rootDirectory = GetArg("-d", args);
-            DirectoryInfo directoryInfo = new DirectoryInfo(rootDirectory);
-
-            int thisMonth = DateTime.Now.Month;
-            int max = GetArg("-max", args) == null ? -1 : Convert.ToInt32(GetArg("-max", args));
-            int oldMax = GetArg("-oldmax", args) == null ? -1 : Convert.ToInt32(GetArg("-oldmax", args));
-
-            if (max != -1)
-            {
-                Log("Excluindo diretórios de " + DateTime.Now.Month + "/" + DateTime.Now.Year + " mantendo último(s) " + max + " dia(s)");
-                List<DirectoryInfo> monthDirectories = directoryInfo.GetDirectories()
-                    .Where(x => (x.CreationTime.Month == DateTime.Now.Month) && (x.CreationTime.Year == DateTime.Now.Year)).ToList();
-
-                int foldersCount = monthDirectories.Count;
-                int firstCount = foldersCount - max;
-
-                if (foldersCount > max)
+                if (ArgExists("-testmail", args))
                 {
-                    List<DirectoryInfo> foldersToDelete = monthDirectories.OrderBy(x => x.CreationTime).Take(firstCount).ToList();
-
-                    foreach (DirectoryInfo dirToDelete in foldersToDelete)
+                    try
                     {
-                        Log("Excluindo diretório:" + dirToDelete.FullName);
-                        //Directory.Delete(dirToDelete.FullName);
+                        Log("Teste de envio de email");
+                        mailer.Send("Teste de email", "DeleteOlders, teste de email");
+                        Log("Email enviado");
+                    }
+                    catch (Exception er)
+                    {
+                        Log("Email não enviado:" + er.Message);
+                    }
+
+                    return;
+                }
+
+                if (args.Length == 0)
+                {
+                    throw new Exception("Nenhum argumento encontrado");
+                }
+
+                if (GetArg("-d", args) == null)
+                {
+                    throw new Exception("Requer o argumento -d com o diretório a ser verificado");
+                }
+
+                string rootDirectory = GetArg("-d", args);
+                DirectoryInfo directoryInfo = new DirectoryInfo(rootDirectory);
+
+                int thisMonth = DateTime.Now.Month;
+                int max = GetArg("-max", args) == null ? -1 : Convert.ToInt32(GetArg("-max", args));
+                int oldMax = GetArg("-oldmax", args) == null ? -1 : Convert.ToInt32(GetArg("-oldmax", args));
+
+                if (max != -1)
+                {
+                    Log("Excluindo diretórios de " + DateTime.Now.Month + "/" + DateTime.Now.Year + " mantendo último(s) " + max + " dia(s)");
+                    List<DirectoryInfo> monthDirectories = directoryInfo.GetDirectories()
+                        .Where(x => (x.CreationTime.Month == DateTime.Now.Month) && (x.CreationTime.Year == DateTime.Now.Year)).ToList();
+
+                    int foldersCount = monthDirectories.Count;
+                    int firstCount = foldersCount - max;
+
+                    if (foldersCount > max)
+                    {
+                        List<DirectoryInfo> foldersToDelete = monthDirectories.OrderBy(x => x.CreationTime).Take(firstCount).ToList();
+
+                        foreach (DirectoryInfo dirToDelete in foldersToDelete)
+                        {
+                            Log("Excluindo diretório:" + dirToDelete.FullName);
+                            Directory.Delete(dirToDelete.FullName);
+                        }
+
+                    }
+                }
+
+                List<DirectoryInfo> oldMonthDirectories = directoryInfo.GetDirectories()
+                        .Where(x => (x.CreationTime < new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1))).ToList();
+
+                int oldFoldersCount = oldMonthDirectories.Count;
+
+                if (ArgExists("-oldmax", args))
+                {
+                    foreach (DirectoryInfo oldDi in oldMonthDirectories)
+                    {
+                        MonthYear monthYear = new MonthYear(oldDi.CreationTime.Month, oldDi.CreationTime.Year);
+                        AddMonthYear(monthYear);
+                    }
+
+                    foreach (MonthYear monthYear in monthYears)
+                    {
+                        List<DirectoryInfo> oldDiMonthYear = directoryInfo.GetDirectories()
+                        .Where(x => (x.CreationTime.Month == monthYear.Month) && (x.CreationTime.Year == monthYear.Year)).ToList();
+
+                        int oldMonthYearCount = oldDiMonthYear.Count;
+                        int oldMonthYearFirstCount = oldMonthYearCount - oldMax;
+
+                        if (oldMonthYearCount > oldMax)
+                        {
+                            List<DirectoryInfo> oldMonthYearToDelete = oldDiMonthYear.OrderBy(x => x.CreationTime).Take(oldMonthYearFirstCount).ToList();
+
+                            foreach (DirectoryInfo oldMonthYearDelete in oldMonthYearToDelete)
+                            {
+                                Log("Excluindo diretório anterior:" + oldMonthYearDelete.FullName);
+                                Directory.Delete(oldMonthYearDelete.FullName);
+                            }
+                        }
                     }
 
                 }
-            }
-
-            List<DirectoryInfo> oldMonthDirectories = directoryInfo.GetDirectories()
-                    .Where(x => (x.CreationTime < new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1))).ToList();
-
-            int oldFoldersCount = oldMonthDirectories.Count;
-
-            if (ArgExists("-oldmax", args))
-            {
-                foreach(DirectoryInfo oldDi in oldMonthDirectories)
+                else
                 {
-                    MonthYear monthYear = new MonthYear(oldDi.CreationTime.Month, oldDi.CreationTime.Year);
-                    AddMonthYear(monthYear);
-                }
-                
-                foreach(MonthYear monthYear in monthYears)
-                {
-                    List<DirectoryInfo> oldDiMonthYear = directoryInfo.GetDirectories()
-                    .Where(x => (x.CreationTime.Month == monthYear.Month) && (x.CreationTime.Year == monthYear.Year)).ToList();
-
-                    int oldMonthYearCount = oldDiMonthYear.Count;
-                    int oldMonthYearFirstCount = oldMonthYearCount - oldMax;
-
-                    if(oldMonthYearCount > oldMax)
+                    if (oldFoldersCount > 0)
                     {
-                        List<DirectoryInfo> oldMonthYearToDelete = oldDiMonthYear.OrderBy(x => x.CreationTime).Take(oldMonthYearFirstCount).ToList();
-
-                        foreach (DirectoryInfo oldMonthYearDelete in oldMonthYearToDelete)
+                        Log("Excluindo todos os meses mais antigos");
+                        foreach (DirectoryInfo allOldDirectoriesToDelete in oldMonthDirectories)
                         {
-                            Log("Excluindo diretório anterior:" + oldMonthYearDelete.FullName);
+                            Log("Excluindo todos diretórios antigos:" + allOldDirectoriesToDelete.FullName);
+                            Directory.Delete(allOldDirectoriesToDelete.FullName);
                         }
                     }
                 }
 
-            }
-            else
-            {
-                if (oldFoldersCount > 0)
+                Log("Fim da remoção");
+
+                try
                 {
-                    Log("Excluindo todos os meses mais antigos");
-                    foreach (DirectoryInfo allOldDirectoriesToDelete in oldMonthDirectories)
-                    {
-                        Log("Excluindo todos diretórios antigos:" + allOldDirectoriesToDelete.Name);
-                    }
+                    mailer.Send("Remoção de backups", log);
                 }
+                catch (Exception)
+                {
+
+                    throw;
+                }
+                
+
+            }
+            catch (Exception er)
+            {
+                Log("Ocorreu um erro:" + er.Message);
             }
 
         }
