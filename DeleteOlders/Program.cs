@@ -10,6 +10,29 @@ namespace DeleteOlders
     {
         static string log = "";
         static List<MonthYear> monthYears = new List<MonthYear>();
+
+        static string ToSize(long source)
+        {
+            const int byteConversion = 1024;
+            double bytes = Convert.ToDouble(source);
+
+            if (bytes >= Math.Pow(byteConversion, 3)) //GB Range
+            {
+                return string.Concat(Math.Round(bytes / Math.Pow(byteConversion, 3), 2), " GB");
+            }
+            else if (bytes >= Math.Pow(byteConversion, 2)) //MB Range
+            {
+                return string.Concat(Math.Round(bytes / Math.Pow(byteConversion, 2), 2), " MB");
+            }
+            else if (bytes >= byteConversion) //KB Range
+            {
+                return string.Concat(Math.Round(bytes / byteConversion, 2), " KB");
+            }
+            else //Bytes
+            {
+                return string.Concat(bytes, " Bytes");
+            }
+        }
         static void Log(string text)
         {
             log += DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss") + " - " + text + Environment.NewLine;
@@ -53,11 +76,11 @@ namespace DeleteOlders
 
         static void Main(string[] args)
         {
+            Mailer mailer = new Mailer();
+            long totalSize = 0;
+
             try
             {
-
-                Mailer mailer = new Mailer();
-
                 if (ArgExists("-testmail", args))
                 {
                     try
@@ -107,7 +130,9 @@ namespace DeleteOlders
                         foreach (DirectoryInfo dirToDelete in foldersToDelete)
                         {
                             Log("Excluindo diretório:" + dirToDelete.FullName);
-                            Directory.Delete(dirToDelete.FullName);
+                            totalSize = totalSize + dirToDelete.EnumerateFiles().Sum(file => file.Length);
+
+                            Directory.Delete(dirToDelete.FullName, true);
                         }
 
                     }
@@ -141,7 +166,8 @@ namespace DeleteOlders
                             foreach (DirectoryInfo oldMonthYearDelete in oldMonthYearToDelete)
                             {
                                 Log("Excluindo diretório anterior:" + oldMonthYearDelete.FullName);
-                                Directory.Delete(oldMonthYearDelete.FullName);
+                                totalSize = totalSize + oldMonthYearDelete.EnumerateFiles().Sum(file => file.Length);
+                                Directory.Delete(oldMonthYearDelete.FullName, true);
                             }
                         }
                     }
@@ -155,12 +181,14 @@ namespace DeleteOlders
                         foreach (DirectoryInfo allOldDirectoriesToDelete in oldMonthDirectories)
                         {
                             Log("Excluindo todos diretórios antigos:" + allOldDirectoriesToDelete.FullName);
-                            Directory.Delete(allOldDirectoriesToDelete.FullName);
+                            totalSize = totalSize + allOldDirectoriesToDelete.EnumerateFiles().Sum(file => file.Length);
+                            Directory.Delete(allOldDirectoriesToDelete.FullName, true);
                         }
                     }
                 }
 
                 Log("Fim da remoção");
+                Log("Tamanho total removido foi de " + ToSize(totalSize));
 
                 try
                 {
@@ -177,6 +205,16 @@ namespace DeleteOlders
             catch (Exception er)
             {
                 Log("Ocorreu um erro:" + er.Message);
+
+                try
+                {
+                    mailer.Send("ERRO:Remoção de backups", log);
+                }
+                catch (Exception)
+                {
+
+                    throw;
+                }
             }
 
         }
