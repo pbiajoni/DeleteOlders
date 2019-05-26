@@ -9,7 +9,7 @@ namespace DeleteOlders
     class Program
     {
         static string log = "";
-
+        static List<MonthYear> monthYears = new List<MonthYear>();
         static void Log(string text)
         {
             log += DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss") + " - " + text + Environment.NewLine;
@@ -26,6 +26,16 @@ namespace DeleteOlders
             }
 
             return null;
+        }
+
+
+        static void AddMonthYear(MonthYear monthYear)
+        {
+            if(!monthYears.Any(x=>x.Month == monthYear.Month && x.Year == monthYear.Year))
+            {
+                Log("Mês para verificar:" + monthYear.ToString());
+                monthYears.Add(monthYear);
+            }
         }
 
         static bool ArgExists(string param, string[] args)
@@ -83,25 +93,37 @@ namespace DeleteOlders
             }
 
             List<DirectoryInfo> oldMonthDirectories = directoryInfo.GetDirectories()
-                    .Where(x => (x.CreationTime.Month != DateTime.Now.Month && x.CreationTime.Year != DateTime.Now.Year)).ToList();
+                    .Where(x => (x.CreationTime < new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1))).ToList();
 
             int oldFoldersCount = oldMonthDirectories.Count;
+
             if (ArgExists("-oldmax", args))
-            {                
-                int oldFirstCount = oldFoldersCount - oldMax;
-
-                if (oldFoldersCount > oldMax)
+            {
+                foreach(DirectoryInfo oldDi in oldMonthDirectories)
                 {
-                    Log("Excluindo meses anteriores mantendo último(s) " + oldMax + " dia(s) de cada mês");
-                    List<DirectoryInfo> oldFoldersToDelete = oldMonthDirectories.OrderBy(x => x.CreationTime).Take(oldFirstCount).ToList();
-
-                    foreach (DirectoryInfo oldDirToDelete in oldFoldersToDelete)
-                    {
-                        Log("Excluindo diretório antigo:" + oldDirToDelete.Name);
-                        //Directory.Delete(dirToDelete.FullName);
-                    }
-
+                    MonthYear monthYear = new MonthYear(oldDi.CreationTime.Month, oldDi.CreationTime.Year);
+                    AddMonthYear(monthYear);
                 }
+                
+                foreach(MonthYear monthYear in monthYears)
+                {
+                    List<DirectoryInfo> oldDiMonthYear = directoryInfo.GetDirectories()
+                    .Where(x => (x.CreationTime.Month == monthYear.Month) && (x.CreationTime.Year == monthYear.Year)).ToList();
+
+                    int oldMonthYearCount = oldDiMonthYear.Count;
+                    int oldMonthYearFirstCount = oldMonthYearCount - oldMax;
+
+                    if(oldMonthYearCount > oldMax)
+                    {
+                        List<DirectoryInfo> oldMonthYearToDelete = oldDiMonthYear.OrderBy(x => x.CreationTime).Take(oldMonthYearFirstCount).ToList();
+
+                        foreach (DirectoryInfo oldMonthYearDelete in oldMonthYearToDelete)
+                        {
+                            Log("Excluindo diretório anterior:" + oldMonthYearDelete.FullName);
+                        }
+                    }
+                }
+
             }
             else
             {
