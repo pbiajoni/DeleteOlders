@@ -13,8 +13,8 @@ namespace DeleteOlders
     public class Mailer
     {
 
-        public void Send(string subect, string message)
-        {            
+        public void Send(string tag, string subect, string message)
+        {
             string host = ConfigurationManager.AppSettings["host"].ToString();
             string password = ConfigurationManager.AppSettings["password"].ToString();
             string username = ConfigurationManager.AppSettings["username"].ToString();
@@ -30,7 +30,7 @@ namespace DeleteOlders
             mail.To.Add(to);
 
             //define o conteúdo
-            mail.Subject = subect;
+            mail.Subject = tag + " - " + subect;
             mail.Body = message;
 
             //envia a mensagem

@@ -78,7 +78,7 @@ namespace DeleteOlders
         {
             Mailer mailer = new Mailer();
             long totalSize = 0;
-
+            string tag = "";
             try
             {
                 if (ArgExists("-testmail", args))
@@ -86,7 +86,7 @@ namespace DeleteOlders
                     try
                     {
                         Log("Teste de envio de email");
-                        mailer.Send("Teste de email", "DeleteOlders, teste de email");
+                        mailer.Send("Tag Teste", "Teste de email", "DeleteOlders, teste de email");
                         Log("Email enviado");
                     }
                     catch (Exception er)
@@ -107,6 +107,12 @@ namespace DeleteOlders
                     throw new Exception("Requer o argumento -d com o diretório a ser verificado");
                 }
 
+                if (GetArg("-tag", args) == null)
+                {
+                    throw new Exception("Requer o argumento -tag com um identificador personalizado");
+                }
+
+                tag = GetArg("-tag", args);
                 string rootDirectory = GetArg("-d", args);
                 DirectoryInfo directoryInfo = new DirectoryInfo(rootDirectory);
 
@@ -192,14 +198,14 @@ namespace DeleteOlders
 
                 try
                 {
-                    mailer.Send("Remoção de backups", log);
+                    mailer.Send(tag, "Remoção de backups", log);
                 }
                 catch (Exception)
                 {
 
                     throw;
                 }
-                
+
 
             }
             catch (Exception er)
@@ -208,7 +214,7 @@ namespace DeleteOlders
 
                 try
                 {
-                    mailer.Send("ERRO:Remoção de backups", log);
+                    mailer.Send(tag, "ERRO:Remoção de backups", log);
                 }
                 catch (Exception)
                 {
